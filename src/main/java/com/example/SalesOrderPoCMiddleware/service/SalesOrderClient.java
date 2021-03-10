@@ -21,10 +21,10 @@ public class SalesOrderClient extends WebServiceGatewaySupport {
     @Value("${client.defaultUri}")
     private String defaultUri;
 
-    public Object getSalesOrderByID(String id, String dateTimeLower, String dateTimeUpper) {
+    public Object getSalesOrderByID(String id, String upperId, String dateTimeLower, String dateTimeUpper, int maxHits) {
         SalesOrderByElementsQueryMessageSync messageSync = new SalesOrderByElementsQueryMessageSync();
         SalesOrderByElementsQuerySelectionByElements salesOrderByElementsQuerySelectionByElements = new SalesOrderByElementsQuerySelectionByElements();
-        if(id!=null){
+        if (id != null && upperId == null) {
             //Selection by ID
             SalesOrderByElementsQuerySelectionByID selectionByID = new SalesOrderByElementsQuerySelectionByID();
             selectionByID.setInclusionExclusionCode("I");
@@ -35,26 +35,41 @@ public class SalesOrderClient extends WebServiceGatewaySupport {
             selectionByID.setUpperBoundaryID(null);
             log.info("Requesting location for " + id);
             salesOrderByElementsQuerySelectionByElements.getSelectionByID().add(selectionByID);
+        }else if(id != null){
+            //Selection by ID
+            SalesOrderByElementsQuerySelectionByID selectionByID = new SalesOrderByElementsQuerySelectionByID();
+            selectionByID.setInclusionExclusionCode("I");
+            selectionByID.setIntervalBoundaryTypeCode("3");
+            BusinessTransactionDocumentID lowerBoundary = new BusinessTransactionDocumentID();
+            BusinessTransactionDocumentID upperBoundary = new BusinessTransactionDocumentID();
+            lowerBoundary.setValue(id);
+            upperBoundary.setValue(upperId);
+            selectionByID.setLowerBoundaryID(lowerBoundary);
+            selectionByID.setUpperBoundaryID(upperBoundary);
+            log.info("Requesting location for " + id);
+            salesOrderByElementsQuerySelectionByElements.getSelectionByID().add(selectionByID);
         }
 
-        if(dateTimeLower != null && dateTimeUpper != null){
+        if (dateTimeLower != null && dateTimeUpper != null) {
             SalesOrderByElementsQuerySelectionByDateTime selectionByDateTime = new SalesOrderByElementsQuerySelectionByDateTime();
             selectionByDateTime.setInclusionExclusionCode("I");
             selectionByDateTime.setIntervalBoundaryTypeCode("3");
-            try{
+            try {
                 selectionByDateTime.setUpperBoundaryDateTime(DatatypeFactory.newInstance().newXMLGregorianCalendar(dateTimeUpper));
                 selectionByDateTime.setLowerBoundaryDateTime(DatatypeFactory.newInstance().newXMLGregorianCalendar(dateTimeLower));
                 logger.info(DatatypeFactory.newInstance().newXMLGregorianCalendar(dateTimeUpper));
-            }catch (Exception e){
+            } catch (Exception e) {
                 logger.error(e.getMessage());
             }
             salesOrderByElementsQuerySelectionByElements.getSelectionByPostingDate().add(selectionByDateTime);
         }
         //Selection by Date
 
-
+        QueryProcessingConditions processingConditions = new QueryProcessingConditions();
+        processingConditions.setQueryHitsMaximumNumberValue(maxHits);
+        messageSync.setProcessingConditions(processingConditions);
         messageSync.setSalesOrderSelectionByElements(salesOrderByElementsQuerySelectionByElements);
-        return  getWebServiceTemplate()
+        return getWebServiceTemplate()
                 .marshalSendAndReceive(defaultUri,
                         new ObjectFactory().createSalesOrderByElementsQuerySync(messageSync));
     }
